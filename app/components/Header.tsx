@@ -13,7 +13,6 @@ export default function Header() {
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-white bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
                         GitPainter
-                        <span className="text-[var(--primary)]">.pro</span>
                     </h1>
                     <p className="text-xs text-gray-400 font-mono tracking-wider">COMMIT HISTORY ARTIST</p>
                 </div>

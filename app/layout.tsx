@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-    title: 'GitPainter.pro - GitHub Commit Art',
+    title: 'GitPainter - GitHub Commit Art',
     description: 'Design and deploy stunning GitHub contribution graphs.',
 }
 

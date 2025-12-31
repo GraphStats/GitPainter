@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
             // Append to README if it exists, or create it.
             if (!fs.existsSync(filePath)) {
-                fs.writeFileSync(filePath, `# Commit Art: ${repo}\n\nGénéré avec GitHub Commit Painter.`);
+                fs.writeFileSync(filePath, `# Commit Art: ${repo}\n\nGénéré avec GitPainter.`);
             } else {
                 fs.appendFileSync(filePath, `\n\n## Update: ${new Date().toISOString()}`);
             }
