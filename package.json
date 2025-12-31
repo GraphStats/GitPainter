@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@vercel/analytics": "^1.6.1",
     "date-fns": "latest",
     "isomorphic-git": "^1.36.1",
     "lucide-react": "latest",
