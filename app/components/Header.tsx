@@ -19,7 +19,7 @@ export default function Header() {
             </div>
 
             <nav className="flex items-center gap-4">
-                <a href="https://github.com" target="_blank" className="btn btn-ghost text-sm gap-2">
+                <a href="https://github.com/GraphStats/GitPainter" target="_blank" className="btn btn-ghost text-sm gap-2">
                     <Github size={16} /> Star on GitHub
                 </a>
                 <div className="h-4 w-[1px] bg-[var(--border)]"></div>
