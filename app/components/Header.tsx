@@ -24,7 +24,7 @@ export default function Header() {
                 </a>
                 <div className="h-4 w-[1px] bg-[var(--border)]"></div>
                 <span className="px-2 py-1 bg-yellow-500/10 text-yellow-500 text-xs rounded border border-yellow-500/20">
-                    v2.0 Beta
+                    v3.1
                 </span>
             </nav>
         </header>
