@@ -1,4 +1,4 @@
-import { GRID_COLS, GRID_ROWS, PresetName } from './constants';
+import { GRID_COLS, GRID_ROWS, GradientDirection, PresetName } from './constants';
 
 export type GridState = number[][];
 
@@ -17,6 +17,47 @@ export const exportGridToJSON = (grid: GridState) => {
 
 export const calculateEstimatedCommits = (grid: GridState, intensity: number = 1): number => {
     return grid.flat().reduce((acc, cell) => acc + (cell * intensity * 2), 0);
+};
+
+export const generateGradientGrid = (direction: GradientDirection, maxLevel: number): GridState => {
+    const clampedMax = Math.max(0, Math.min(4, Math.round(maxLevel)));
+    const colMax = Math.max(GRID_COLS - 1, 1);
+    const rowMax = Math.max(GRID_ROWS - 1, 1);
+
+    // Deterministic pseudo-random for dithering (stable across renders)
+    const rand = (r: number, c: number) => {
+        const x = Math.sin((r + 1) * 9283 + (c + 1) * 5471) * 43758.5453;
+        return x - Math.floor(x);
+    };
+
+    return createEmptyGrid().map((row, r) =>
+        row.map((_, c) => {
+            let progress = 0;
+            switch (direction) {
+                case 'RIGHT_TO_LEFT':
+                    progress = 1 - (c / colMax);
+                    break;
+                case 'TOP_TO_BOTTOM':
+                    progress = r / rowMax;
+                    break;
+                case 'BOTTOM_TO_TOP':
+                    progress = 1 - (r / rowMax);
+                    break;
+                case 'LEFT_TO_RIGHT':
+                default:
+                    progress = c / colMax;
+                    break;
+            }
+
+            // Dithered rounding to avoid bandes nettes façon "marches"
+            const floatLevel = progress * clampedMax;
+            const base = Math.floor(floatLevel);
+            const frac = floatLevel - base;
+            const value = base + (rand(r, c) < frac ? 1 : 0);
+
+            return Math.min(clampedMax, Math.max(0, value));
+        })
+    );
 };
 
 export const generatePresetGrid = (type: PresetName): GridState => {

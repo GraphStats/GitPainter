@@ -9,12 +9,13 @@ import Terminal from './components/Terminal';
 import {
     createEmptyGrid,
     generatePresetGrid,
+    generateGradientGrid,
     exportGridToJSON,
     calculateEstimatedCommits,
     GridState
 } from './lib/utils';
-import { PresetName, MOCK_LOGS } from './lib/constants';
-import { Activity, GitCommit, Calendar, Hash, Zap } from 'lucide-react';
+import { PresetName, GradientDirection } from './lib/constants';
+import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend } from 'lucide-react';
 
 export default function Home() {
     // Core State
@@ -22,6 +23,9 @@ export default function Home() {
     const [selectedColor, setSelectedColor] = useState(1);
     const [brushSize, setBrushSize] = useState<1 | 2>(1);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [gradientDirection, setGradientDirection] = useState<GradientDirection>('LEFT_TO_RIGHT');
+    const [gradientMaxLevel, setGradientMaxLevel] = useState(4);
+    const [isGradientModalOpen, setIsGradientModalOpen] = useState(false);
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -161,6 +165,23 @@ export default function Home() {
         addToHistory(newGrid);
     };
 
+    const handleApplyGradient = () => {
+        const maxLevel = Math.max(gradientMaxLevel, 1);
+        const newGrid = generateGradientGrid(gradientDirection, maxLevel);
+        handleGridChange(newGrid);
+        addToHistory(newGrid);
+
+        const directionLabels: Record<GradientDirection, string> = {
+            LEFT_TO_RIGHT: 'gauche -> droite',
+            RIGHT_TO_LEFT: 'droite -> gauche',
+            TOP_TO_BOTTOM: 'haut -> bas',
+            BOTTOM_TO_TOP: 'bas -> haut',
+        };
+
+        setLogs(prev => [...prev, { message: `Dégradé appliqué (${directionLabels[gradientDirection]}, intensité max ${maxLevel}).`, type: 'info' }]);
+        setIsGradientModalOpen(false);
+    };
+
     // Generation Logic
     const handleGenerate = async () => {
         if (!formData.token || !formData.username || !formData.repo) {
@@ -296,6 +317,7 @@ export default function Home() {
                             onPreset={handlePreset}
                             onFill={handleFill}
                             onExport={() => exportGridToJSON(grid)}
+                            onOpenGradientModal={() => setIsGradientModalOpen(true)}
                         />
                         <div className="card shadow-2xl shadow-black/50 border border-white/5 relative overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-green-500/5 pointer-events-none" />
@@ -332,6 +354,79 @@ export default function Home() {
                     </div>
                 </div>
             </div>
+
+            {/* Gradient Direction Modal */}
+            {isGradientModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4" onClick={() => setIsGradientModalOpen(false)}>
+                    <div
+                        className="bg-[#0f1622] border border-[#30363d] rounded-xl shadow-2xl w-full max-w-md p-6 relative animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsGradientModalOpen(false)}
+                            className="absolute right-3 top-3 text-gray-500 hover:text-white"
+                            aria-label="Fermer"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20">
+                                <Blend size={16} />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">Mode dégradé</h3>
+                                <p className="text-xs text-gray-400">Choisis la direction puis applique au canvas.</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            {([
+                                { value: 'LEFT_TO_RIGHT' as GradientDirection, label: 'Gauche → Droite', icon: <ArrowRight size={14} /> },
+                                { value: 'RIGHT_TO_LEFT' as GradientDirection, label: 'Droite → Gauche', icon: <ArrowLeft size={14} /> },
+                                { value: 'TOP_TO_BOTTOM' as GradientDirection, label: 'Haut → Bas', icon: <ArrowDown size={14} /> },
+                                { value: 'BOTTOM_TO_TOP' as GradientDirection, label: 'Bas → Haut', icon: <ArrowUp size={14} /> },
+                            ]).map(option => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => setGradientDirection(option.value)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                                        gradientDirection === option.value
+                                            ? 'border-green-500 bg-green-500/10 text-green-100'
+                                            : 'border-[#30363d] bg-[#0b1018] text-gray-300 hover:border-gray-600'
+                                    }`}
+                                >
+                                    {option.icon}
+                                    <span className="text-sm">{option.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="mt-4">
+                            <label className="text-xs text-gray-400 flex justify-between mb-1">
+                                <span>Intensité maximale</span>
+                                <span className="text-green-300 font-semibold">Niveau {gradientMaxLevel}</span>
+                            </label>
+                            <input
+                                type="range"
+                                min={1}
+                                max={4}
+                                step={1}
+                                value={gradientMaxLevel}
+                                onChange={(e) => setGradientMaxLevel(parseInt(e.target.value, 10))}
+                                className="w-full accent-[var(--primary)]"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleApplyGradient}
+                            className="btn btn-primary w-full mt-4 py-2 font-semibold"
+                        >
+                            Appliquer le dégradé
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

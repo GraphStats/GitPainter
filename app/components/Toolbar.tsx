@@ -1,10 +1,10 @@
 'use client';
 
 import {
-    Eraser, PaintBucket, Shuffle, Trash2,
-    Download, Upload, Heart, Grid3X3, MousePointer2
+    Eraser, PaintBucket, Shuffle,
+    Download, Heart, Grid3X3, MousePointer2, Blend
 } from 'lucide-react';
-import { CONTRIBUTION_LEVELS, PresetName, PRESETS } from '../lib/constants';
+import { CONTRIBUTION_LEVELS, PresetName } from '../lib/constants';
 
 interface ToolbarProps {
     selectedColor: number;
@@ -16,12 +16,13 @@ interface ToolbarProps {
     onPreset: (p: PresetName) => void;
     onFill: () => void;
     onExport: () => void;
+    onOpenGradientModal: () => void;
 }
 
 export default function Toolbar({
     selectedColor, setSelectedColor,
     brushSize, setBrushSize,
-    onClear, onRandom, onPreset, onFill, onExport
+    onClear, onRandom, onPreset, onFill, onExport, onOpenGradientModal
 }: ToolbarProps) {
     return (
         <div className="card flex flex-col gap-6 lg:flex-row lg:items-center justify-between mb-6">
@@ -78,6 +79,9 @@ export default function Toolbar({
                     </button>
                     <button onClick={() => onPreset('SPACE_INVADER')} className="btn btn-ghost px-2 py-1 text-xs">
                         <Grid3X3 size={14} className="mr-1" /> Retro
+                    </button>
+                    <button onClick={onOpenGradientModal} className="btn btn-ghost px-2 py-1 text-xs">
+                        <Blend size={14} className="mr-1" /> Dégradé
                     </button>
                 </div>
             </div>

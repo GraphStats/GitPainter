@@ -13,6 +13,7 @@ export const GRID_ROWS = 7;
 export const GRID_COLS = 53;
 
 export type PresetName = 'HEART' | 'SMILEY' | 'SPACE_INVADER' | 'HI' | 'RIP' | 'RANDOM_SCATTER' | 'CHECKERBOARD';
+export type GradientDirection = 'LEFT_TO_RIGHT' | 'RIGHT_TO_LEFT' | 'TOP_TO_BOTTOM' | 'BOTTOM_TO_TOP';
 
 export const PRESETS: Record<PresetName, { name: string, description: string }> = {
     HEART: { name: 'Cœur', description: 'Un cœur pixel art au centre' },
