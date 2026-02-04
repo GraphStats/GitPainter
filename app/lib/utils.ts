@@ -113,6 +113,51 @@ export const generatePresetGrid = (type: PresetName): GridState => {
             }
             break;
 
+        case 'CHAOS_WAVE': {
+            // Motif dense, type "activité soutenue" concentrée sur les lignes centrales
+            const midRows = [2, 3, 4]; // rows 2-4 (0-index) = Tue-Thu si layout standard
+            const edgeRows = [1, 5];
+
+            for (let c = 0; c < GRID_COLS; c++) {
+                // colonnes respirations ponctuelles
+                if (Math.random() < 0.02) continue;
+
+                // définir un "bandeau" actif par colonne
+                const center = midRows[Math.floor(Math.random() * midRows.length)];
+                const height = 1 + Math.floor(Math.random() * 3); // 1 à 3 lignes actives
+
+                for (let r = 0; r < GRID_ROWS; r++) {
+                    const inBand = Math.abs(r - center) <= height;
+                    const isEdge = edgeRows.includes(r) && Math.random() < 0.6;
+                    const shouldFill = (inBand && Math.random() > 0.1) || isEdge;
+
+                    if (shouldFill) {
+                        const strength = 1 + Math.floor(Math.random() * 4); // 1..4
+                        grid[r][c] = Math.max(grid[r][c], strength);
+                    }
+                }
+
+                // pics rares en bord supérieur/inférieur pour casser la ligne
+                if (Math.random() < 0.08) {
+                    const top = 0, bottom = GRID_ROWS - 1;
+                    const strength = 2 + Math.floor(Math.random() * 3);
+                    const pickTop = Math.random() < 0.5;
+                    const targetRow = pickTop ? top : bottom;
+                    grid[targetRow][c] = Math.max(grid[targetRow][c], strength - 1);
+                }
+            }
+
+            // Backfill léger pour réduire les cellules vides restantes
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    if (grid[r][c] === 0 && Math.random() < 0.25) {
+                        grid[r][c] = 1 + Math.floor(Math.random() * 2); // niveaux 1-2
+                    }
+                }
+            }
+            break;
+        }
+
         // Fallback for others (HI, SMILEY, etc - keep simple for now)
         default:
             // 'HI'

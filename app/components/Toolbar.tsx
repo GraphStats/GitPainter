@@ -74,6 +74,9 @@ export default function Toolbar({
                     <button onClick={onRandom} className="btn btn-ghost px-2 py-1 text-xs">
                         <Shuffle size={14} className="mr-1" /> Chaos
                     </button>
+                    <button onClick={() => onPreset('CHAOS_WAVE')} className="btn btn-ghost px-2 py-1 text-xs">
+                        <Shuffle size={14} className="mr-1" /> Chaos Vague
+                    </button>
                     <button onClick={() => onPreset('HEART')} className="btn btn-ghost px-2 py-1 text-xs">
                         <Heart size={14} className="mr-1" /> Love
                     </button>

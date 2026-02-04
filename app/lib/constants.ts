@@ -12,7 +12,7 @@ export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', '
 export const GRID_ROWS = 7;
 export const GRID_COLS = 53;
 
-export type PresetName = 'HEART' | 'SMILEY' | 'SPACE_INVADER' | 'HI' | 'RIP' | 'RANDOM_SCATTER' | 'CHECKERBOARD';
+export type PresetName = 'HEART' | 'SMILEY' | 'SPACE_INVADER' | 'HI' | 'RIP' | 'RANDOM_SCATTER' | 'CHAOS_WAVE' | 'CHECKERBOARD';
 export type GradientDirection = 'LEFT_TO_RIGHT' | 'RIGHT_TO_LEFT' | 'TOP_TO_BOTTOM' | 'BOTTOM_TO_TOP';
 
 export const PRESETS: Record<PresetName, { name: string, description: string }> = {
@@ -21,7 +21,8 @@ export const PRESETS: Record<PresetName, { name: string, description: string }> 
     SPACE_INVADER: { name: 'Space Invader', description: 'Alien rétro' },
     HI: { name: 'Say Hi', description: 'Écrit "HI" sur la grille' },
     RIP: { name: 'RIP', description: 'Pour les projets morts' },
-    RANDOM_SCATTER: { name: 'Pluie Aléatoire', description: 'Chaos organisé' },
+    RANDOM_SCATTER: { name: 'Chaos Classique', description: 'Petits pics partout' },
+    CHAOS_WAVE: { name: 'Chaos Vague', description: 'Courbe irrégulière continue' },
     CHECKERBOARD: { name: 'Damier', description: 'Motif alterné' },
 };
 
