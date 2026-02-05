@@ -62,7 +62,7 @@ export default function Header({ onOpenSimpleSetup }: HeaderProps) {
                 </a>
                 <div className="h-4 w-[1px] bg-[var(--border)]"></div>
                 <span className="px-2 py-1 bg-yellow-500/10 text-yellow-500 text-xs rounded border border-yellow-500/20">
-                    v3.2 (latest)
+                    v3.3 (latest)
                 </span>
             </nav>
         </header>
