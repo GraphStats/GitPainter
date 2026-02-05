@@ -34,6 +34,7 @@ export default function Home() {
     const [simpleStep, setSimpleStep] = useState(0);
     const [generationComplete, setGenerationComplete] = useState(false);
     const [hasLoggedPushing, setHasLoggedPushing] = useState(false);
+    const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -214,6 +215,7 @@ export default function Home() {
 
         setGenerationComplete(false);
         setHasLoggedPushing(false);
+        setProgress({ current: 0, total: 0 });
         setLoading(true);
         setLogs([{ message: 'Initializing sequence...', type: 'info' }]);
 
@@ -249,6 +251,9 @@ export default function Home() {
 
                         if (data.status === 'generating') {
                             // Update last log if it's progress, or push new
+                            if (typeof data.current === 'number' && typeof data.total === 'number') {
+                                setProgress({ current: data.current, total: data.total });
+                            }
                             setLogs(prev => {
                                 const newLogs = [...prev];
                                 if (newLogs.length > 0 && newLogs[newLogs.length - 1].message.includes('Generating')) {
@@ -261,14 +266,23 @@ export default function Home() {
                                 setGenerationComplete(true);
                             }
                         } else if (data.status === 'pushing') {
-                            if (generationComplete || data.current >= data.total) {
+                            if (generationComplete || progress.current >= progress.total || (data.current && data.total && data.current >= data.total)) {
                                 if (!hasLoggedPushing) {
                                     setLogs(prev => [...prev, { message: 'Pushing to remote repository...', type: 'warning' }]);
                                     setHasLoggedPushing(true);
                                 }
                             }
                         } else if (data.status === 'done') {
-                            setLogs(prev => [...prev, { message: `SUCCESS: ${data.commitCount} commits deployed to ${formData.username}/${formData.repo}!`, type: 'success' }]);
+                            const finalTotal = data.total ?? data.commitCount ?? progress.total;
+                            const finalCurrent = data.commitCount ?? finalTotal ?? progress.current;
+                            setProgress({ current: finalCurrent, total: finalTotal });
+                            setLogs(prev => {
+                                const newLogs = [...prev];
+                                // ensure last progress shows 100%
+                                newLogs.push({ message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' });
+                                newLogs.push({ message: `SUCCESS: ${data.commitCount} commits deployed to ${formData.username}/${formData.repo}!`, type: 'success' });
+                                return newLogs;
+                            });
                             setLoading(false);
                             setGenerationComplete(false);
                             setHasLoggedPushing(false);
