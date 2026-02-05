@@ -266,7 +266,11 @@ export default function Home() {
                                 setGenerationComplete(true);
                             }
                         } else if (data.status === 'pushing') {
-                            if (generationComplete || progress.current >= progress.total || (data.current && data.total && data.current >= data.total)) {
+                            if (
+                                generationComplete ||
+                                (progress.total > 0 && progress.current >= progress.total) ||
+                                (data.current !== undefined && data.total !== undefined && data.current >= data.total)
+                            ) {
                                 if (!hasLoggedPushing) {
                                     setLogs(prev => [...prev, { message: 'Pushing to remote repository...', type: 'warning' }]);
                                     setHasLoggedPushing(true);
@@ -278,8 +282,12 @@ export default function Home() {
                             setProgress({ current: finalCurrent, total: finalTotal });
                             setLogs(prev => {
                                 const newLogs = [...prev];
-                                // ensure last progress shows 100%
-                                newLogs.push({ message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' });
+                                // ensure last progress shows 100% only if not already logged as 100%
+                                const last = newLogs[newLogs.length - 1];
+                                const already100 = last && last.message.includes('(100%)');
+                                if (!already100) {
+                                    newLogs.push({ message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' });
+                                }
                                 newLogs.push({ message: `SUCCESS: ${data.commitCount} commits deployed to ${formData.username}/${formData.repo}!`, type: 'success' });
                                 return newLogs;
                             });
