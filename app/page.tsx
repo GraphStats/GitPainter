@@ -282,9 +282,9 @@ export default function Home() {
                             setProgress({ current: finalCurrent, total: finalTotal });
                             setLogs(prev => {
                                 const newLogs = [...prev];
-                                // If the last log is a generating log, upgrade it to 100% instead of adding a new line
-                                if (newLogs.length > 0 && newLogs[newLogs.length - 1].message.startsWith('Generating commits')) {
-                                    newLogs[newLogs.length - 1] = { message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' };
+                                const idx = newLogs.map(l => l.message).findLastIndex(m => m.startsWith('Generating commits'));
+                                if (idx !== -1) {
+                                    newLogs[idx] = { message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' };
                                 } else {
                                     newLogs.push({ message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' });
                                 }
