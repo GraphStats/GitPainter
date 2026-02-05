@@ -32,6 +32,8 @@ export default function Home() {
     const [writingLevel, setWritingLevel] = useState(4);
     const [isSimpleSetupOpen, setIsSimpleSetupOpen] = useState(false);
     const [simpleStep, setSimpleStep] = useState(0);
+    const [generationComplete, setGenerationComplete] = useState(false);
+    const [hasLoggedPushing, setHasLoggedPushing] = useState(false);
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -210,6 +212,8 @@ export default function Home() {
             return;
         }
 
+        setGenerationComplete(false);
+        setHasLoggedPushing(false);
         setLoading(true);
         setLogs([{ message: 'Initializing sequence...', type: 'info' }]);
 
@@ -253,11 +257,21 @@ export default function Home() {
                                 }
                                 return [...prev, { message: `Generating commits: ${data.current}/${data.total}`, type: 'info' }];
                             });
+                            if (data.current >= data.total) {
+                                setGenerationComplete(true);
+                            }
                         } else if (data.status === 'pushing') {
-                            setLogs(prev => [...prev, { message: 'Pushing to remote repository...', type: 'warning' }]);
+                            if (generationComplete || data.current >= data.total) {
+                                if (!hasLoggedPushing) {
+                                    setLogs(prev => [...prev, { message: 'Pushing to remote repository...', type: 'warning' }]);
+                                    setHasLoggedPushing(true);
+                                }
+                            }
                         } else if (data.status === 'done') {
                             setLogs(prev => [...prev, { message: `SUCCESS: ${data.commitCount} commits deployed to ${formData.username}/${formData.repo}!`, type: 'success' }]);
                             setLoading(false);
+                            setGenerationComplete(false);
+                            setHasLoggedPushing(false);
                         }
                     } catch (e) {
                         console.error('Error parsing stream', e);
@@ -265,9 +279,11 @@ export default function Home() {
                 }
             }
         } catch (err: any) {
-            setLogs(prev => [...prev, { message: `Connection Error: ${err.message}`, type: 'error' }]);
-            setLoading(false);
-        }
+                            setLogs(prev => [...prev, { message: `Connection Error: ${err.message}`, type: 'error' }]);
+                            setLoading(false);
+                            setGenerationComplete(false);
+                            setHasLoggedPushing(false);
+                        }
     };
 
     return (
