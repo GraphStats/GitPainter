@@ -30,6 +30,8 @@ export default function Home() {
     const [isWritingModalOpen, setIsWritingModalOpen] = useState(false);
     const [writingText, setWritingText] = useState('HELLO');
     const [writingLevel, setWritingLevel] = useState(4);
+    const [isSimpleSetupOpen, setIsSimpleSetupOpen] = useState(false);
+    const [simpleStep, setSimpleStep] = useState(0);
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -270,7 +272,7 @@ export default function Home() {
     return (
         <div className="min-h-screen bg-[var(--background)] flex flex-col items-center" onMouseUp={handleMouseUp} onMouseLeave={() => setIsDrawing(false)}>
             <div className="w-full max-w-[1400px] px-4 md:px-8 pb-20 flex flex-col items-center">
-                <Header />
+                <Header onOpenSimpleSetup={() => setIsSimpleSetupOpen(true)} />
 
                 {/* Info Card */}
                 <div className="w-full mb-6 p-4 rounded-xl bg-blue-900/10 border border-blue-500/20 backdrop-blur-sm animate-fade-in flex items-start gap-4">
@@ -502,6 +504,156 @@ export default function Home() {
                         >
                             Dessiner le texte
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Simple Setup Wizard */}
+            {isSimpleSetupOpen && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center px-4" onClick={() => setIsSimpleSetupOpen(false)}>
+                    <div
+                        className="bg-[#0c131d] border border-[#30363d] rounded-2xl shadow-2xl w-full max-w-3xl p-6 relative animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsSimpleSetupOpen(false)}
+                            className="absolute right-3 top-3 text-gray-500 hover:text-white"
+                            aria-label="Fermer"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="flex justify-between items-center mb-6">
+                            <div>
+                                <p className="text-xs uppercase tracking-widest text-gray-500">Assistant</p>
+                                <h3 className="text-xl font-semibold">Simple Setup</h3>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                                Étape {simpleStep + 1} / 3
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Stepper labels */}
+                            <div className="md:col-span-1 space-y-3">
+                                {['Identité', 'Paramètres', 'Lancement'].map((label, idx) => (
+                                    <div
+                                        key={label}
+                                        className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${simpleStep === idx ? 'border-green-500/60 bg-green-500/5 text-white' : 'border-[#30363d] text-gray-400'}`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${simpleStep === idx ? 'bg-green-500 text-black' : 'bg-[#161b22] border border-[#30363d]'}`}>
+                                            {idx + 1}
+                                        </div>
+                                        <span>{label}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Step content */}
+                            <div className="md:col-span-2 space-y-4">
+                                {simpleStep === 0 && (
+                                    <>
+                                        <label className="text-xs text-gray-400">GitHub Username</label>
+                                        <input
+                                            className="input-field"
+                                            value={formData.username}
+                                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                            placeholder="octocat"
+                                        />
+                                        <label className="text-xs text-gray-400">Target Repo</label>
+                                        <input
+                                            className="input-field"
+                                            value={formData.repo}
+                                            onChange={(e) => setFormData({ ...formData, repo: e.target.value })}
+                                            placeholder="my-art-repo"
+                                        />
+                                    </>
+                                )}
+
+                                {simpleStep === 1 && (
+                                    <>
+                                        <label className="text-xs text-gray-400">Year</label>
+                                        <input
+                                            type="number"
+                                            className="input-field"
+                                            value={formData.year}
+                                            onChange={(e) => setFormData({ ...formData, year: parseInt(e.target.value, 10) || new Date().getFullYear() })}
+                                            min={2000}
+                                            max={2100}
+                                        />
+                                        <div className="flex items-center gap-3">
+                                            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.weekendMode}
+                                                    onChange={(e) => setFormData({ ...formData, weekendMode: e.target.checked })}
+                                                    className="accent-[var(--primary)] w-4 h-4 rounded border-gray-700 bg-gray-900"
+                                                />
+                                                Ignorer les week-ends
+                                            </label>
+                                            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={formData.randomizeTime}
+                                                    onChange={(e) => setFormData({ ...formData, randomizeTime: e.target.checked })}
+                                                    className="accent-[var(--primary)] w-4 h-4 rounded border-gray-700 bg-gray-900"
+                                                />
+                                                Heures aléatoires
+                                            </label>
+                                        </div>
+                                    </>
+                                )}
+
+                                {simpleStep === 2 && (
+                                    <>
+                                        <label className="text-xs text-gray-400 flex items-center gap-2">Token (PAT)</label>
+                                        <input
+                                            type="password"
+                                            className="input-field"
+                                            value={formData.token}
+                                            onChange={(e) => setFormData({ ...formData, token: e.target.value })}
+                                            placeholder="ghp_xxxxx"
+                                        />
+                                        <div className="text-[11px] text-gray-500">Scope requis : repo</div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-between items-center mt-6">
+                            <button
+                                onClick={() => setIsSimpleSetupOpen(false)}
+                                className="btn btn-secondary px-4"
+                            >
+                                Annuler
+                            </button>
+                            <div className="flex items-center gap-2">
+                                {simpleStep > 0 && (
+                                    <button
+                                        onClick={() => setSimpleStep((s) => Math.max(0, s - 1))}
+                                        className="btn btn-secondary px-4"
+                                    >
+                                        Précédent
+                                    </button>
+                                )}
+                                {simpleStep < 2 && (
+                                    <button
+                                        onClick={() => setSimpleStep((s) => Math.min(2, s + 1))}
+                                        className="btn btn-primary px-4"
+                                    >
+                                        Suivant
+                                    </button>
+                                )}
+                                {simpleStep === 2 && (
+                                    <button
+                                        onClick={() => { setIsSimpleSetupOpen(false); handleGenerate(); }}
+                                        className="btn btn-primary px-4"
+                                    >
+                                        Lancer
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
