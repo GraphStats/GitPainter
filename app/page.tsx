@@ -42,6 +42,7 @@ export default function Home() {
         token: '',
         username: '',
         repo: '',
+        email: '',
         year: new Date().getFullYear(),
         weekendMode: false,
         randomizeTime: false,
