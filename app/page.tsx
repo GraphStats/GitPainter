@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';
 import GridEditor from './components/GridEditor';
 import Toolbar from './components/Toolbar';
@@ -15,8 +15,8 @@ import {
     calculateEstimatedCommits,
     GridState
 } from './lib/utils';
-import { PresetName, GradientDirection } from './lib/constants';
-import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend, PenLine } from 'lucide-react';
+import { PresetName, GradientDirection, GRID_COLS, GRID_ROWS } from './lib/constants';
+import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend, PenLine, Pencil } from 'lucide-react';
 
 export default function Home() {
     // Core State
@@ -35,6 +35,11 @@ export default function Home() {
     const [generationComplete, setGenerationComplete] = useState(false);
     const [hasLoggedPushing, setHasLoggedPushing] = useState(false);
     const [progress, setProgress] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
+    const [isFreeDrawOpen, setIsFreeDrawOpen] = useState(false);
+    const [freeDrawBrush, setFreeDrawBrush] = useState(6);
+    const freeCanvasRef = useRef<HTMLCanvasElement | null>(null);
+    const freeCanvasCtxRef = useRef<CanvasRenderingContext2D | null>(null);
+    const isDrawingFreeRef = useRef(false);
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -148,6 +153,87 @@ export default function Home() {
         setIsDrawing(false);
         // Add to history only when drawing stops
         addToHistory(grid);
+    };
+
+    // Free draw helpers
+    const syncFreeCanvasSize = () => {
+        const canvas = freeCanvasRef.current;
+        if (!canvas) return;
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const neededW = Math.round(rect.width * dpr);
+        const neededH = Math.round(rect.height * dpr);
+        if (canvas.width !== neededW || canvas.height !== neededH) {
+            canvas.width = neededW;
+            canvas.height = neededH;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale drawing ops to CSS pixels
+            ctx.fillStyle = '#0b111a';
+            ctx.fillRect(0, 0, rect.width, rect.height);
+            freeCanvasCtxRef.current = ctx;
+        }
+    };
+
+    const startFreeDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        syncFreeCanvasSize();
+        const canvas = freeCanvasRef.current;
+        const ctx = freeCanvasCtxRef.current;
+        if (!canvas || !ctx) return;
+        isDrawingFreeRef.current = true;
+        drawFree(e);
+    };
+
+    const endFreeDraw = () => {
+        isDrawingFreeRef.current = false;
+    };
+
+    const drawFree = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        const canvas = freeCanvasRef.current;
+        const ctx = freeCanvasCtxRef.current;
+        if (!canvas || !ctx || !isDrawingFreeRef.current) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        ctx.fillStyle = '#39d353';
+        ctx.beginPath();
+        ctx.arc(x, y, freeDrawBrush, 0, Math.PI * 2);
+        ctx.fill();
+    };
+
+    useEffect(() => {
+        if (!isFreeDrawOpen) return;
+        syncFreeCanvasSize();
+        const onResize = () => syncFreeCanvasSize();
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, [isFreeDrawOpen]);
+
+    const handleApplyFreeDraw = () => {
+        const canvas = freeCanvasRef.current;
+        const ctx = freeCanvasCtxRef.current;
+        if (!canvas || !ctx) return;
+        const image = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const newGrid = createEmptyGrid();
+        const cellWpx = canvas.width / GRID_COLS;
+        const cellHpx = canvas.height / GRID_ROWS;
+
+        for (let r = 0; r < GRID_ROWS; r++) {
+            for (let c = 0; c < GRID_COLS; c++) {
+                // sample center pixel of cell (native px)
+                const cx = Math.floor((c + 0.5) * cellWpx);
+                const cy = Math.floor((r + 0.5) * cellHpx);
+                const idx = (cy * canvas.width + cx) * 4;
+                const g = image[idx + 1]; // use green channel
+                const level = Math.min(4, Math.floor((g / 255) * 4));
+                newGrid[r][c] = level;
+            }
+        }
+
+        handleGridChange(newGrid);
+        addToHistory(newGrid);
+        setLogs(prev => [...prev, { message: 'Dessin libre importé dans la grille.', type: 'info' }]);
+        setIsFreeDrawOpen(false);
     };
 
     // Tools
@@ -375,9 +461,10 @@ export default function Home() {
                                     onPreset={handlePreset}
                                     onFill={handleFill}
                                     onExport={() => exportGridToJSON(grid)}
-                                    onOpenGradientModal={() => setIsGradientModalOpen(true)}
-                                    onOpenWritingModal={() => setIsWritingModalOpen(true)}
-                                />
+                            onOpenGradientModal={() => setIsGradientModalOpen(true)}
+                            onOpenWritingModal={() => setIsWritingModalOpen(true)}
+                            onOpenFreeDraw={() => setIsFreeDrawOpen(true)}
+                        />
                                 <div className="card shadow-2xl shadow-black/50 border border-white/5 relative overflow-hidden group">
                                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-green-500/5 pointer-events-none" />
                                     <GridEditor
@@ -494,22 +581,23 @@ export default function Home() {
                                 </div>
                             )}
 
-                            {simpleStep === 3 && (
-                                <div className="space-y-4">
-                                    <p className="text-sm text-gray-400">Dessine ton graphique de contributions :</p>
-                                    <Toolbar
-                                        selectedColor={selectedColor}
-                                        setSelectedColor={setSelectedColor}
-                                        brushSize={brushSize}
-                                        setBrushSize={setBrushSize}
-                                        onClear={handleClear}
-                                        onRandom={handleRandom}
-                                        onPreset={handlePreset}
-                                        onFill={handleFill}
-                                        onExport={() => exportGridToJSON(grid)}
-                                        onOpenGradientModal={() => setIsGradientModalOpen(true)}
-                                        onOpenWritingModal={() => setIsWritingModalOpen(true)}
-                                    />
+                        {simpleStep === 3 && (
+                            <div className="space-y-4">
+                                <p className="text-sm text-gray-400">Dessine ton graphique de contributions :</p>
+                                <Toolbar
+                                    selectedColor={selectedColor}
+                                    setSelectedColor={setSelectedColor}
+                                    brushSize={brushSize}
+                                    setBrushSize={setBrushSize}
+                                    onClear={handleClear}
+                                    onRandom={handleRandom}
+                                    onPreset={handlePreset}
+                                    onFill={handleFill}
+                                    onExport={() => exportGridToJSON(grid)}
+                                    onOpenGradientModal={() => setIsGradientModalOpen(true)}
+                                    onOpenWritingModal={() => setIsWritingModalOpen(true)}
+                                    onOpenFreeDraw={() => setIsFreeDrawOpen(true)}
+                                />
                                     <div className="card border border-[#334155] bg-[#0f1622] shadow-lg p-4">
                                         <GridEditor
                                             grid={grid}
@@ -540,10 +628,10 @@ export default function Home() {
                                     </button>
                                 )}
                             </div>
-                        </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
-            </div>
 
             {/* Gradient Direction Modal */}
             {isGradientModalOpen && (
@@ -673,6 +761,76 @@ export default function Home() {
                         >
                             Dessiner le texte
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {isFreeDrawOpen && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center px-4" onClick={() => setIsFreeDrawOpen(false)}>
+                    <div
+                        className="bg-[#0c131d] border border-[#30363d] rounded-2xl shadow-2xl w-full max-w-4xl p-6 relative animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsFreeDrawOpen(false)}
+                            className="absolute right-3 top-3 text-gray-500 hover:text-white"
+                            aria-label="Fermer"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                                <Pencil size={16} />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">Dessin libre</h3>
+                                <p className="text-xs text-gray-400">Dessine librement, puis convertis en grille (53x7).</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 mb-4">
+                            <label className="text-xs text-gray-400">Taille du pinceau</label>
+                            <input
+                                type="range"
+                                min={2}
+                                max={12}
+                                step={1}
+                                value={freeDrawBrush}
+                                onChange={(e) => setFreeDrawBrush(parseInt(e.target.value, 10))}
+                                className="w-48 accent-[var(--primary)]"
+                            />
+                            <span className="text-xs text-gray-300"> {freeDrawBrush}px</span>
+                            <button
+                                className="btn btn-secondary text-xs"
+                                onClick={() => {
+                                    const canvas = freeCanvasRef.current;
+                                    const ctx = freeCanvasCtxRef.current;
+                                    if (canvas && ctx) {
+                                        ctx.fillStyle = '#0b111a';
+                                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                                    }
+                                }}
+                            >
+                                Clear
+                            </button>
+                        </div>
+
+                        <div className="border border-[#30363d] rounded-xl overflow-hidden bg-[#0b111a] flex justify-center">
+                            <canvas
+                                ref={freeCanvasRef}
+                                className="w-full max-w-[800px] aspect-[53/7] cursor-crosshair"
+                                onMouseDown={startFreeDraw}
+                                onMouseMove={drawFree}
+                                onMouseUp={endFreeDraw}
+                                onMouseLeave={endFreeDraw}
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-5">
+                            <button className="btn btn-secondary" onClick={() => setIsFreeDrawOpen(false)}>Annuler</button>
+                            <button className="btn btn-primary" onClick={handleApplyFreeDraw}>Convertir en grille</button>
+                        </div>
                     </div>
                 </div>
             )}
