@@ -282,13 +282,13 @@ export default function Home() {
                             setProgress({ current: finalCurrent, total: finalTotal });
                             setLogs(prev => {
                                 const newLogs = [...prev];
-                                // ensure last progress shows 100% only if not already logged as 100%
-                                const last = newLogs[newLogs.length - 1];
-                                const already100 = last && last.message.includes('(100%)');
-                                if (!already100) {
+                                // If the last log is a generating log, upgrade it to 100% instead of adding a new line
+                                if (newLogs.length > 0 && newLogs[newLogs.length - 1].message.startsWith('Generating commits')) {
+                                    newLogs[newLogs.length - 1] = { message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' };
+                                } else {
                                     newLogs.push({ message: `Generating commits: ${finalCurrent}/${finalTotal} (100%)`, type: 'info' });
                                 }
-                                newLogs.push({ message: `SUCCESS: ${data.commitCount} commits deployed to ${formData.username}/${formData.repo}!`, type: 'success' });
+                                newLogs.push({ message: `SUCCESS: ${finalCurrent} commits deployed to ${formData.username}/${formData.repo}!`, type: 'success' });
                                 return newLogs;
                             });
                             setLoading(false);
