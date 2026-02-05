@@ -2,7 +2,7 @@
 
 import {
     Eraser, PaintBucket, Shuffle,
-    Download, Heart, Grid3X3, MousePointer2, Blend
+    Download, Heart, Grid3X3, MousePointer2, Blend, Pen
 } from 'lucide-react';
 import { CONTRIBUTION_LEVELS, PresetName } from '../lib/constants';
 
@@ -17,12 +17,13 @@ interface ToolbarProps {
     onFill: () => void;
     onExport: () => void;
     onOpenGradientModal: () => void;
+    onOpenWritingModal: () => void;
 }
 
 export default function Toolbar({
     selectedColor, setSelectedColor,
     brushSize, setBrushSize,
-    onClear, onRandom, onPreset, onFill, onExport, onOpenGradientModal
+    onClear, onRandom, onPreset, onFill, onExport, onOpenGradientModal, onOpenWritingModal
 }: ToolbarProps) {
     return (
         <div className="card flex flex-col gap-6 lg:flex-row lg:items-center justify-between mb-6">
@@ -85,6 +86,9 @@ export default function Toolbar({
                     </button>
                     <button onClick={onOpenGradientModal} className="btn btn-ghost px-2 py-1 text-xs">
                         <Blend size={14} className="mr-1" /> Dégradé
+                    </button>
+                    <button onClick={onOpenWritingModal} className="btn btn-ghost px-2 py-1 text-xs">
+                        <Pen size={14} className="mr-1" /> Écriture
                     </button>
                 </div>
             </div>

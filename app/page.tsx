@@ -10,12 +10,13 @@ import {
     createEmptyGrid,
     generatePresetGrid,
     generateGradientGrid,
+    renderTextToGrid,
     exportGridToJSON,
     calculateEstimatedCommits,
     GridState
 } from './lib/utils';
 import { PresetName, GradientDirection } from './lib/constants';
-import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend } from 'lucide-react';
+import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend, PenLine } from 'lucide-react';
 
 export default function Home() {
     // Core State
@@ -26,6 +27,9 @@ export default function Home() {
     const [gradientDirection, setGradientDirection] = useState<GradientDirection>('LEFT_TO_RIGHT');
     const [gradientMaxLevel, setGradientMaxLevel] = useState(4);
     const [isGradientModalOpen, setIsGradientModalOpen] = useState(false);
+    const [isWritingModalOpen, setIsWritingModalOpen] = useState(false);
+    const [writingText, setWritingText] = useState('HELLO');
+    const [writingLevel, setWritingLevel] = useState(4);
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -182,6 +186,20 @@ export default function Home() {
         setIsGradientModalOpen(false);
     };
 
+    const handleApplyWriting = () => {
+        const text = writingText.trim();
+        if (!text) {
+            setLogs(prev => [...prev, { message: 'Écriture: texte vide.', type: 'error' }]);
+            return;
+        }
+        const level = Math.max(1, Math.min(4, writingLevel));
+        const newGrid = renderTextToGrid(text, level);
+        handleGridChange(newGrid);
+        addToHistory(newGrid);
+        setLogs(prev => [...prev, { message: `Texte "${text}" appliqué (niveau ${level}).`, type: 'info' }]);
+        setIsWritingModalOpen(false);
+    };
+
     // Generation Logic
     const handleGenerate = async () => {
         if (!formData.token || !formData.username || !formData.repo) {
@@ -318,6 +336,7 @@ export default function Home() {
                             onFill={handleFill}
                             onExport={() => exportGridToJSON(grid)}
                             onOpenGradientModal={() => setIsGradientModalOpen(true)}
+                            onOpenWritingModal={() => setIsWritingModalOpen(true)}
                         />
                         <div className="card shadow-2xl shadow-black/50 border border-white/5 relative overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-green-500/5 pointer-events-none" />
@@ -423,6 +442,65 @@ export default function Home() {
                             className="btn btn-primary w-full mt-4 py-2 font-semibold"
                         >
                             Appliquer le dégradé
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Writing Modal */}
+            {isWritingModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4" onClick={() => setIsWritingModalOpen(false)}>
+                    <div
+                        className="bg-[#0f1622] border border-[#30363d] rounded-xl shadow-2xl w-full max-w-md p-6 relative animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsWritingModalOpen(false)}
+                            className="absolute right-3 top-3 text-gray-500 hover:text-white"
+                            aria-label="Fermer"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 rounded-lg bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                                <PenLine size={16} />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">Mode écriture</h3>
+                                <p className="text-xs text-gray-400">Tape le texte à dessiner sur la grille (A-Z, 0-9).</p>
+                            </div>
+                        </div>
+
+                        <label className="text-xs text-gray-400 mb-2 block">Texte</label>
+                        <input
+                            type="text"
+                            value={writingText}
+                            onChange={(e) => setWritingText(e.target.value)}
+                            maxLength={20}
+                            className="input-field mb-4"
+                            placeholder="HELLO WORLD"
+                        />
+
+                        <div className="mb-4">
+                            <label className="text-xs text-gray-400 mb-2 block">Intensité (niveau 1-4)</label>
+                            <input
+                                type="range"
+                                min={1}
+                                max={4}
+                                step={1}
+                                value={writingLevel}
+                                onChange={(e) => setWritingLevel(parseInt(e.target.value, 10))}
+                                className="w-full accent-[var(--primary)]"
+                            />
+                            <div className="text-[11px] text-gray-400 mt-1">Niveau actuel : {writingLevel}</div>
+                        </div>
+
+                        <button
+                            onClick={handleApplyWriting}
+                            className="btn btn-primary w-full py-2 font-semibold"
+                        >
+                            Dessiner le texte
                         </button>
                     </div>
                 </div>

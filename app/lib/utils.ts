@@ -120,7 +120,7 @@ export const generatePresetGrid = (type: PresetName): GridState => {
 
             for (let c = 0; c < GRID_COLS; c++) {
                 // colonnes respirations ponctuelles
-                if (Math.random() < 0.02) continue;
+                if (Math.random() < 0.005) continue;
 
                 // définir un "bandeau" actif par colonne
                 const center = midRows[Math.floor(Math.random() * midRows.length)];
@@ -128,8 +128,8 @@ export const generatePresetGrid = (type: PresetName): GridState => {
 
                 for (let r = 0; r < GRID_ROWS; r++) {
                     const inBand = Math.abs(r - center) <= height;
-                    const isEdge = edgeRows.includes(r) && Math.random() < 0.6;
-                    const shouldFill = (inBand && Math.random() > 0.1) || isEdge;
+                    const isEdge = edgeRows.includes(r) && Math.random() < 0.75;
+                    const shouldFill = (inBand && Math.random() > 0.03) || isEdge;
 
                     if (shouldFill) {
                         const strength = 1 + Math.floor(Math.random() * 4); // 1..4
@@ -147,11 +147,11 @@ export const generatePresetGrid = (type: PresetName): GridState => {
                 }
             }
 
-            // Backfill léger pour réduire les cellules vides restantes
+            // Backfill plus appuyé pour réduire quasi tous les 0 restants
             for (let r = 0; r < GRID_ROWS; r++) {
                 for (let c = 0; c < GRID_COLS; c++) {
-                    if (grid[r][c] === 0 && Math.random() < 0.25) {
-                        grid[r][c] = 1 + Math.floor(Math.random() * 2); // niveaux 1-2
+                    if (grid[r][c] === 0 && Math.random() < 0.45) {
+                        grid[r][c] = 1 + Math.floor(Math.random() * 3); // niveaux 1-3
                     }
                 }
             }
@@ -170,6 +170,300 @@ export const generatePresetGrid = (type: PresetName): GridState => {
                 if (grid[row] && grid[row][col] !== undefined) grid[row][col] = 4;
             });
             break;
+    }
+    return grid;
+};
+
+// Simple 5x5 block font for A-Z, 0-9, space
+const FONT_5X5: Record<string, string[]> = {
+    'A': [
+        ' 1  ',
+        '1 1 ',
+        '111 ',
+        '1 1 ',
+        '1 1 ',
+    ],
+    'B': [
+        '11  ',
+        '1 1 ',
+        '11  ',
+        '1 1 ',
+        '11  ',
+    ],
+    'C': [
+        ' 11 ',
+        '1   ',
+        '1   ',
+        '1   ',
+        ' 11 ',
+    ],
+    'D': [
+        '11  ',
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        '11  ',
+    ],
+    'E': [
+        '111 ',
+        '1   ',
+        '11  ',
+        '1   ',
+        '111 ',
+    ],
+    'F': [
+        '111 ',
+        '1   ',
+        '11  ',
+        '1   ',
+        '1   ',
+    ],
+    'G': [
+        ' 11 ',
+        '1   ',
+        '1 11',
+        '1  1',
+        ' 11 ',
+    ],
+    'H': [
+        '1 1 ',
+        '1 1 ',
+        '111 ',
+        '1 1 ',
+        '1 1 ',
+    ],
+    'I': [
+        '111 ',
+        ' 1  ',
+        ' 1  ',
+        ' 1  ',
+        '111 ',
+    ],
+    'J': [
+        ' 111',
+        '   1',
+        '   1',
+        '1  1',
+        ' 11 ',
+    ],
+    'K': [
+        '1 1 ',
+        '1 1 ',
+        '11  ',
+        '1 1 ',
+        '1 1 ',
+    ],
+    'L': [
+        '1   ',
+        '1   ',
+        '1   ',
+        '1   ',
+        '111 ',
+    ],
+    'M': [
+        '1 1 ',
+        '111 ',
+        '111 ',
+        '1 1 ',
+        '1 1 ',
+    ],
+    'N': [
+        '1 1 ',
+        '111 ',
+        '111 ',
+        '111 ',
+        '1 1 ',
+    ],
+    'O': [
+        ' 1  ',
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        ' 1  ',
+    ],
+    'P': [
+        '11  ',
+        '1 1 ',
+        '11  ',
+        '1   ',
+        '1   ',
+    ],
+    'Q': [
+        ' 1  ',
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        ' 11 ',
+    ],
+    'R': [
+        '11  ',
+        '1 1 ',
+        '11  ',
+        '1 1 ',
+        '1 1 ',
+    ],
+    'S': [
+        ' 11 ',
+        '1   ',
+        ' 1  ',
+        '  1 ',
+        '11  ',
+    ],
+    'T': [
+        '111 ',
+        ' 1  ',
+        ' 1  ',
+        ' 1  ',
+        ' 1  ',
+    ],
+    'U': [
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        '111 ',
+    ],
+    'V': [
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        ' 1  ',
+    ],
+    'W': [
+        '1 1 ',
+        '1 1 ',
+        '111 ',
+        '111 ',
+        '1 1 ',
+    ],
+    'X': [
+        '1 1 ',
+        '1 1 ',
+        ' 1  ',
+        '1 1 ',
+        '1 1 ',
+    ],
+    'Y': [
+        '1 1 ',
+        '1 1 ',
+        ' 1  ',
+        ' 1  ',
+        ' 1  ',
+    ],
+    'Z': [
+        '111 ',
+        '  1 ',
+        ' 1  ',
+        '1   ',
+        '111 ',
+    ],
+    '0': [
+        '111 ',
+        '1 1 ',
+        '1 1 ',
+        '1 1 ',
+        '111 ',
+    ],
+    '1': [
+        ' 1  ',
+        '11  ',
+        ' 1  ',
+        ' 1  ',
+        '111 ',
+    ],
+    '2': [
+        '111 ',
+        '  1 ',
+        '111 ',
+        '1   ',
+        '111 ',
+    ],
+    '3': [
+        '111 ',
+        '  1 ',
+        '111 ',
+        '  1 ',
+        '111 ',
+    ],
+    '4': [
+        '1 1 ',
+        '1 1 ',
+        '111 ',
+        '  1 ',
+        '  1 ',
+    ],
+    '5': [
+        '111 ',
+        '1   ',
+        '111 ',
+        '  1 ',
+        '111 ',
+    ],
+    '6': [
+        '111 ',
+        '1   ',
+        '111 ',
+        '1 1 ',
+        '111 ',
+    ],
+    '7': [
+        '111 ',
+        '  1 ',
+        ' 1  ',
+        ' 1  ',
+        ' 1  ',
+    ],
+    '8': [
+        '111 ',
+        '1 1 ',
+        '111 ',
+        '1 1 ',
+        '111 ',
+    ],
+    '9': [
+        '111 ',
+        '1 1 ',
+        '111 ',
+        '  1 ',
+        '111 ',
+    ],
+    ' ': [
+        '    ',
+        '    ',
+        '    ',
+        '    ',
+        '    ',
+    ],
+};
+
+export const renderTextToGrid = (text: string, level: number = 4): GridState => {
+    const grid = createEmptyGrid();
+    if (!text) return grid;
+
+    const upper = text.toUpperCase();
+    const charWidth = 4; // patterns use width up to 4 (including trailing space)
+    const spacing = 1;
+    const totalWidth = upper.length * charWidth + (upper.length - 1) * spacing;
+    const startCol = Math.max(0, Math.floor((GRID_COLS - totalWidth) / 2));
+    const startRow = 1; // center vertically (rows 1-5 fit in 7)
+
+    let col = startCol;
+    for (const ch of upper) {
+        const pattern = FONT_5X5[ch] || FONT_5X5[' '];
+        for (let pr = 0; pr < pattern.length; pr++) {
+            for (let pc = 0; pc < pattern[pr].length; pc++) {
+                if (pattern[pr][pc] === '1') {
+                    const r = startRow + pr;
+                    const c = col + pc;
+                    if (grid[r] && grid[r][c] !== undefined) {
+                        grid[r][c] = level;
+                    }
+                }
+            }
+        }
+        col += charWidth + spacing;
+        if (col >= GRID_COLS) break; // stop if no more space
     }
     return grid;
 };
