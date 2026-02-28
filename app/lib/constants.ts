@@ -24,6 +24,7 @@ export const PRESETS: Record<PresetName, { name: string, description: string }> 
     RANDOM_SCATTER: { name: 'Chaos Classique', description: 'Petits pics partout' },
     CHAOS_WAVE: { name: 'Chaos Vague', description: 'Courbe irrégulière continue' },
     CHECKERBOARD: { name: 'Damier', description: 'Motif alterné' },
+    LINE_GRAPH: { name: 'Line Graph', description: 'Courbe personnalisable sur 53 colonnes' },
 };
 
 export const MOCK_LOGS = [
