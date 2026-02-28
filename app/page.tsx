@@ -10,13 +10,17 @@ import {
     createEmptyGrid,
     generatePresetGrid,
     generateGradientGrid,
+    generateLineGraphGrid,
     renderTextToGrid,
     exportGridToJSON,
+    importGridFromJSON,
     calculateEstimatedCommits,
-    GridState
+    GridState,
+    LineGraphPresetConfig,
+    PresetExportData
 } from './lib/utils';
 import { PresetName, GradientDirection, GRID_COLS, GRID_ROWS } from './lib/constants';
-import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend, PenLine, Pencil } from 'lucide-react';
+import { Activity, GitCommit, Calendar, Hash, Zap, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, X, Blend, PenLine, Pencil, TrendingUp } from 'lucide-react';
 
 export default function Home() {
     // Core State
@@ -30,6 +34,14 @@ export default function Home() {
     const [isWritingModalOpen, setIsWritingModalOpen] = useState(false);
     const [writingText, setWritingText] = useState('HELLO');
     const [writingLevel, setWritingLevel] = useState(4);
+    const [isLineGraphModalOpen, setIsLineGraphModalOpen] = useState(false);
+    const [lineGraphConfig, setLineGraphConfig] = useState<LineGraphPresetConfig>({
+        curve: Array.from({ length: GRID_COLS }, () => 0.5),
+        thickness: 2,
+        smoothing: 0,
+        jitter: 0,
+    });
+    const [lastPresetExport, setLastPresetExport] = useState<PresetExportData | undefined>(undefined);
     const [isSimpleSetupOpen, setIsSimpleSetupOpen] = useState(false);
     const [simpleStep, setSimpleStep] = useState(0);
     const [generationComplete, setGenerationComplete] = useState(false);
@@ -40,6 +52,8 @@ export default function Home() {
     const freeCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const freeCanvasCtxRef = useRef<CanvasRenderingContext2D | null>(null);
     const isDrawingFreeRef = useRef(false);
+    const isDrawingLineGraphRef = useRef(false);
+    const lastLineGraphColRef = useRef<number | null>(null);
 
     // History State (Undo/Redo)
     const [history, setHistory] = useState<GridState[]>([]);
@@ -134,6 +148,13 @@ export default function Home() {
         setStats({ total, maxDay });
     }, [grid]);
 
+    const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+    const normalizeLineCurve = useCallback((curve: number[]) => {
+        const safe = Array.from({ length: GRID_COLS }, (_, i) => clamp01(curve[i] ?? curve[curve.length - 1] ?? 0.5));
+        return safe;
+    }, []);
+
     // History Management
     const addToHistory = (newGrid: GridState) => {
         const newHistory = history.slice(0, historyIndex + 1);
@@ -145,6 +166,7 @@ export default function Home() {
 
     const handleGridChange = (newGrid: GridState) => {
         setGrid(newGrid);
+        setLastPresetExport(undefined);
         // We defer history add to mouseUp to avoid spamming history during drag, 
         // but for now simple implementation:
     };
@@ -234,6 +256,84 @@ export default function Home() {
         addToHistory(newGrid);
         setLogs(prev => [...prev, { message: 'Dessin libre importé dans la grille.', type: 'info' }]);
         setIsFreeDrawOpen(false);
+    };
+
+    const updateLineGraphAtPosition = (clientX: number, clientY: number, rect: DOMRect) => {
+        const xRatio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+        const yRatio = Math.min(1, Math.max(0, (clientY - rect.top) / rect.height));
+        const col = Math.min(GRID_COLS - 1, Math.max(0, Math.round(xRatio * (GRID_COLS - 1))));
+        const value = clamp01(1 - yRatio);
+
+        setLineGraphConfig((prev) => {
+            const curve = [...normalizeLineCurve(prev.curve)];
+            const previousCol = lastLineGraphColRef.current;
+
+            if (previousCol !== null && previousCol !== col) {
+                const start = Math.min(previousCol, col);
+                const end = Math.max(previousCol, col);
+                const startVal = curve[previousCol];
+                for (let c = start; c <= end; c++) {
+                    const t = (c - start) / Math.max(1, end - start);
+                    curve[c] = startVal * (1 - t) + value * t;
+                }
+            } else {
+                curve[col] = value;
+            }
+
+            lastLineGraphColRef.current = col;
+            return { ...prev, curve };
+        });
+    };
+
+    const handleLineGraphPointerDown = (e: React.MouseEvent<SVGSVGElement>) => {
+        isDrawingLineGraphRef.current = true;
+        updateLineGraphAtPosition(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
+    };
+
+    const handleLineGraphPointerMove = (e: React.MouseEvent<SVGSVGElement>) => {
+        if (!isDrawingLineGraphRef.current) return;
+        updateLineGraphAtPosition(e.clientX, e.clientY, e.currentTarget.getBoundingClientRect());
+    };
+
+    const endLineGraphDrawing = () => {
+        isDrawingLineGraphRef.current = false;
+        lastLineGraphColRef.current = null;
+    };
+
+    const handleApplyLineGraph = () => {
+        const config: LineGraphPresetConfig = {
+            curve: normalizeLineCurve(lineGraphConfig.curve),
+            thickness: Math.max(1, Math.min(GRID_ROWS, Math.round(lineGraphConfig.thickness))),
+            smoothing: Math.max(0, Math.min(GRID_COLS, Math.round(lineGraphConfig.smoothing))),
+            jitter: Math.max(0, Math.min(0.2, lineGraphConfig.jitter)),
+        };
+        const newGrid = generateLineGraphGrid(config);
+        handleGridChange(newGrid);
+        setLastPresetExport({ type: 'LINE_GRAPH', config });
+        addToHistory(newGrid);
+        setLogs(prev => [...prev, { message: `Line Graph appliquÃ© (thickness ${config.thickness}, smoothing ${config.smoothing}, jitter ${config.jitter.toFixed(2)}).`, type: 'info' }]);
+        setIsLineGraphModalOpen(false);
+    };
+
+    const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            const raw = await file.text();
+            const imported = importGridFromJSON(raw);
+            handleGridChange(imported.grid);
+            if (imported.preset?.type === 'LINE_GRAPH') {
+                setLineGraphConfig(imported.preset.config);
+                setLastPresetExport(imported.preset);
+            }
+            addToHistory(imported.grid);
+            setLogs(prev => [...prev, { message: `JSON importÃ©: ${file.name}`, type: 'info' }]);
+        } catch (error: any) {
+            setLogs(prev => [...prev, { message: `Import JSON impossible: ${error?.message || 'format invalide'}`, type: 'error' }]);
+        } finally {
+            event.target.value = '';
+        }
     };
 
     // Tools
@@ -394,6 +494,15 @@ export default function Home() {
                         }
     };
 
+    const lineGraphCurve = normalizeLineCurve(lineGraphConfig.curve);
+    const lineGraphPoints = lineGraphCurve
+        .map((v, i) => {
+            const x = (i / Math.max(1, GRID_COLS - 1)) * 100;
+            const y = (1 - v) * 100;
+            return `${x},${y}`;
+        })
+        .join(' ');
+
     return (
         <div className="min-h-screen bg-[var(--background)] flex flex-col items-center" onMouseUp={handleMouseUp} onMouseLeave={() => setIsDrawing(false)}>
             <div className="w-full max-w-[1400px] px-4 md:px-8 pb-20 flex flex-col items-center">
@@ -460,10 +569,12 @@ export default function Home() {
                                     onRandom={handleRandom}
                                     onPreset={handlePreset}
                                     onFill={handleFill}
-                                    onExport={() => exportGridToJSON(grid)}
+                                    onExport={() => exportGridToJSON(grid, lastPresetExport)}
+                                    onImport={handleImportJSON}
                             onOpenGradientModal={() => setIsGradientModalOpen(true)}
                             onOpenWritingModal={() => setIsWritingModalOpen(true)}
                             onOpenFreeDraw={() => setIsFreeDrawOpen(true)}
+                            onOpenLineGraphModal={() => setIsLineGraphModalOpen(true)}
                         />
                                 <div className="card shadow-2xl shadow-black/50 border border-white/5 relative overflow-hidden group">
                                     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-green-500/5 pointer-events-none" />
@@ -593,10 +704,12 @@ export default function Home() {
                                     onRandom={handleRandom}
                                     onPreset={handlePreset}
                                     onFill={handleFill}
-                                    onExport={() => exportGridToJSON(grid)}
+                                    onExport={() => exportGridToJSON(grid, lastPresetExport)}
+                                    onImport={handleImportJSON}
                                     onOpenGradientModal={() => setIsGradientModalOpen(true)}
                                     onOpenWritingModal={() => setIsWritingModalOpen(true)}
                                     onOpenFreeDraw={() => setIsFreeDrawOpen(true)}
+                                    onOpenLineGraphModal={() => setIsLineGraphModalOpen(true)}
                                 />
                                     <div className="card border border-[#334155] bg-[#0f1622] shadow-lg p-4">
                                         <GridEditor
@@ -761,6 +874,119 @@ export default function Home() {
                         >
                             Dessiner le texte
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {isLineGraphModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-4" onClick={() => setIsLineGraphModalOpen(false)}>
+                    <div
+                        className="bg-[#0f1622] border border-[#30363d] rounded-xl shadow-2xl w-full max-w-3xl p-6 relative animate-fade-in"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setIsLineGraphModalOpen(false)}
+                            className="absolute right-3 top-3 text-gray-500 hover:text-white"
+                            aria-label="Fermer"
+                        >
+                            <X size={16} />
+                        </button>
+
+                        <div className="flex items-center gap-2 mb-4">
+                            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                                <TrendingUp size={16} />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">Preset Line Graph</h3>
+                                <p className="text-xs text-gray-400">Dessine une courbe normalisÃ©e (0..1), puis convertis-la en intensitÃ©s GitHub.</p>
+                            </div>
+                        </div>
+
+                        <div className="border border-[#30363d] rounded-lg bg-[#0b111a] p-3">
+                            <svg
+                                viewBox="0 0 100 100"
+                                className="w-full h-[220px] touch-none cursor-crosshair select-none"
+                                onMouseDown={handleLineGraphPointerDown}
+                                onMouseMove={handleLineGraphPointerMove}
+                                onMouseUp={endLineGraphDrawing}
+                                onMouseLeave={endLineGraphDrawing}
+                            >
+                                <defs>
+                                    <pattern id="line-graph-grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                                        <path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(148,163,184,0.2)" strokeWidth="0.5" />
+                                    </pattern>
+                                </defs>
+                                <rect x="0" y="0" width="100" height="100" fill="url(#line-graph-grid)" />
+                                <polyline fill="none" stroke="#39d353" strokeWidth="1.8" points={lineGraphPoints} />
+                                {lineGraphCurve.map((v, i) => {
+                                    const x = (i / Math.max(1, GRID_COLS - 1)) * 100;
+                                    const y = (1 - v) * 100;
+                                    return <circle key={`line-dot-${i}`} cx={x} cy={y} r="0.8" fill="#39d353" />;
+                                })}
+                            </svg>
+                        </div>
+
+                        <div className="grid md:grid-cols-3 gap-4 mt-4">
+                            <div>
+                                <label className="text-xs text-gray-400 flex justify-between mb-1">
+                                    <span>Thickness</span>
+                                    <span className="text-emerald-300 font-semibold">{lineGraphConfig.thickness}</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min={1}
+                                    max={4}
+                                    step={1}
+                                    value={lineGraphConfig.thickness}
+                                    onChange={(e) => setLineGraphConfig((prev) => ({ ...prev, thickness: parseInt(e.target.value, 10) || 1 }))}
+                                    className="w-full accent-[var(--primary)]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-400 flex justify-between mb-1">
+                                    <span>Smoothing</span>
+                                    <span className="text-emerald-300 font-semibold">{lineGraphConfig.smoothing}</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={9}
+                                    step={1}
+                                    value={lineGraphConfig.smoothing}
+                                    onChange={(e) => setLineGraphConfig((prev) => ({ ...prev, smoothing: parseInt(e.target.value, 10) || 0 }))}
+                                    className="w-full accent-[var(--primary)]"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-400 flex justify-between mb-1">
+                                    <span>Jitter</span>
+                                    <span className="text-emerald-300 font-semibold">{lineGraphConfig.jitter.toFixed(2)}</span>
+                                </label>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={0.2}
+                                    step={0.01}
+                                    value={lineGraphConfig.jitter}
+                                    onChange={(e) => setLineGraphConfig((prev) => ({ ...prev, jitter: parseFloat(e.target.value) || 0 }))}
+                                    className="w-full accent-[var(--primary)]"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3 mt-5">
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setLineGraphConfig((prev) => ({ ...prev, curve: Array.from({ length: GRID_COLS }, () => 0.5) }))}
+                            >
+                                Reset Curve
+                            </button>
+                            <button className="btn btn-primary" onClick={handleApplyLineGraph}>
+                                Appliquer le preset
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

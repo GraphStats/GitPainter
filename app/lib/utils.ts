@@ -1,18 +1,138 @@
 import { GRID_COLS, GRID_ROWS, GradientDirection, PresetName } from './constants';
 
 export type GridState = number[][];
+export interface LineGraphPresetConfig {
+    curve: number[];
+    thickness: number;
+    smoothing: number;
+    jitter: number;
+}
+
+export interface PresetExportData {
+    type: 'LINE_GRAPH';
+    config: LineGraphPresetConfig;
+}
+
+interface GridExportPayload {
+    version: 1;
+    grid: GridState;
+    preset?: PresetExportData;
+}
 
 export const createEmptyGrid = (): GridState =>
     Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(0));
 
-export const exportGridToJSON = (grid: GridState) => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(grid));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+const normalizeCurve = (curve: number[], targetLength: number): number[] => {
+    if (!Array.isArray(curve) || curve.length === 0) {
+        return Array(targetLength).fill(0.5);
+    }
+
+    const source = curve.map((v) => clamp(Number.isFinite(v) ? v : 0.5, 0, 1));
+    if (source.length === targetLength) return source;
+    if (targetLength <= 1) return [source[0]];
+
+    const srcMax = source.length - 1;
+    const dstMax = targetLength - 1;
+    return Array.from({ length: targetLength }, (_, i) => {
+        const t = (i / dstMax) * srcMax;
+        const left = Math.floor(t);
+        const right = Math.min(srcMax, left + 1);
+        const frac = t - left;
+        return source[left] * (1 - frac) + source[right] * frac;
+    });
+};
+
+const movingAverage = (values: number[], windowSize: number): number[] => {
+    const size = Math.max(1, Math.floor(windowSize));
+    if (size <= 1) return [...values];
+    const radius = Math.floor(size / 2);
+
+    return values.map((_, idx) => {
+        let total = 0;
+        let count = 0;
+        for (let i = idx - radius; i <= idx + radius; i++) {
+            const safe = clamp(i, 0, values.length - 1);
+            total += values[safe];
+            count++;
+        }
+        return total / Math.max(count, 1);
+    });
+};
+
+export const generateLineGraphGrid = (config: LineGraphPresetConfig): GridState => {
+    const grid = createEmptyGrid();
+    const thickness = clamp(Math.round(config.thickness || 2), 1, GRID_ROWS);
+    const smoothing = clamp(Math.round(config.smoothing || 0), 0, GRID_COLS);
+    const jitter = clamp(config.jitter || 0, 0, 0.2);
+    const normalizedCurve = normalizeCurve(config.curve, GRID_COLS);
+    const curve = smoothing > 1 ? movingAverage(normalizedCurve, smoothing) : normalizedCurve;
+
+    for (let c = 0; c < GRID_COLS; c++) {
+        const noise = jitter > 0 ? (Math.random() * 2 - 1) * jitter : 0;
+        const y = clamp(curve[c] + noise, 0, 1);
+        const centerRow = Math.round((1 - y) * (GRID_ROWS - 1));
+
+        for (let r = 0; r < GRID_ROWS; r++) {
+            const distance = Math.abs(r - centerRow);
+            let level = 0;
+
+            if (distance === 0) level = 4;
+            else if (distance === 1) level = 3;
+            else if (distance <= thickness) level = 2;
+
+            if (level > 0) grid[r][c] = Math.max(grid[r][c], level);
+        }
+    }
+
+    return grid;
+};
+
+export const exportGridToJSON = (grid: GridState, preset?: PresetExportData) => {
+    const payload: GridExportPayload | GridState = preset ? { version: 1, grid, preset } : grid;
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
     downloadAnchorNode.setAttribute("download", "commit_pattern.json");
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
+};
+
+export const importGridFromJSON = (rawJSON: string): { grid: GridState; preset?: PresetExportData } => {
+    const parsed = JSON.parse(rawJSON);
+    const payload = Array.isArray(parsed) ? { grid: parsed as GridState } : parsed;
+    const grid = payload?.grid;
+
+    if (!Array.isArray(grid) || grid.length !== GRID_ROWS) {
+        throw new Error(`Invalid grid format: expected ${GRID_ROWS} rows.`);
+    }
+
+    const normalizedGrid: GridState = grid.map((row: any) => {
+        if (!Array.isArray(row) || row.length !== GRID_COLS) {
+            throw new Error(`Invalid grid format: expected ${GRID_COLS} columns.`);
+        }
+        return row.map((cell: any) => clamp(Math.round(Number(cell) || 0), 0, 4));
+    });
+
+    const preset = payload?.preset;
+    if (preset?.type === 'LINE_GRAPH' && preset.config) {
+        return {
+            grid: normalizedGrid,
+            preset: {
+                type: 'LINE_GRAPH',
+                config: {
+                    curve: normalizeCurve(preset.config.curve, GRID_COLS),
+                    thickness: clamp(Math.round(preset.config.thickness || 2), 1, GRID_ROWS),
+                    smoothing: clamp(Math.round(preset.config.smoothing || 0), 0, GRID_COLS),
+                    jitter: clamp(Number(preset.config.jitter) || 0, 0, 0.2),
+                },
+            },
+        };
+    }
+
+    return { grid: normalizedGrid };
 };
 
 export const calculateEstimatedCommits = (grid: GridState, intensity: number = 1): number => {
@@ -104,6 +224,19 @@ export const generatePresetGrid = (type: PresetName): GridState => {
                 }
             }
             break;
+
+        case 'LINE_GRAPH': {
+            const baseCurve = Array.from({ length: GRID_COLS }, (_, c) => {
+                const x = c / Math.max(1, GRID_COLS - 1);
+                return clamp(0.5 + Math.sin(x * Math.PI * 2) * 0.25, 0, 1);
+            });
+            return generateLineGraphGrid({
+                curve: baseCurve,
+                thickness: 2,
+                smoothing: 0,
+                jitter: 0,
+            });
+        }
 
         case 'RANDOM_SCATTER':
             for (let r = 0; r < GRID_ROWS; r++) {

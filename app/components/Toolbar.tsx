@@ -2,7 +2,7 @@
 
 import {
     Eraser, PaintBucket, Shuffle,
-    Download, Heart, Grid3X3, MousePointer2, Blend, Pen, Pencil
+    Download, Upload, Heart, Grid3X3, MousePointer2, Blend, Pen, Pencil, TrendingUp
 } from 'lucide-react';
 import { CONTRIBUTION_LEVELS, PresetName } from '../lib/constants';
 
@@ -16,15 +16,17 @@ interface ToolbarProps {
     onPreset: (p: PresetName) => void;
     onFill: () => void;
     onExport: () => void;
+    onImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onOpenGradientModal: () => void;
     onOpenWritingModal: () => void;
     onOpenFreeDraw: () => void;
+    onOpenLineGraphModal: () => void;
 }
 
 export default function Toolbar({
     selectedColor, setSelectedColor,
     brushSize, setBrushSize,
-    onClear, onRandom, onPreset, onFill, onExport, onOpenGradientModal, onOpenWritingModal, onOpenFreeDraw
+    onClear, onRandom, onPreset, onFill, onExport, onImport, onOpenGradientModal, onOpenWritingModal, onOpenFreeDraw, onOpenLineGraphModal
 }: ToolbarProps) {
     return (
         <div className="card flex flex-col gap-6 lg:flex-row lg:items-center justify-between mb-6">
@@ -64,6 +66,10 @@ export default function Toolbar({
                     <button onClick={onExport} className="btn btn-secondary px-3 py-1.5 text-xs">
                         <Download size={14} className="mr-2" /> Save JSON
                     </button>
+                    <label className="btn btn-secondary px-3 py-1.5 text-xs cursor-pointer">
+                        <Upload size={14} className="mr-2" /> Load JSON
+                        <input type="file" accept=".json,application/json" className="hidden" onChange={onImport} />
+                    </label>
                 </div>
             </div>
 
@@ -93,6 +99,9 @@ export default function Toolbar({
                     </button>
                     <button onClick={onOpenFreeDraw} className="btn btn-ghost px-2 py-1 text-xs">
                         <Pencil size={14} className="mr-1" /> Dessin libre
+                    </button>
+                    <button onClick={onOpenLineGraphModal} className="btn btn-ghost px-2 py-1 text-xs">
+                        <TrendingUp size={14} className="mr-1" /> Line Graph
                     </button>
                 </div>
             </div>

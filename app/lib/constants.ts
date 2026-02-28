@@ -12,7 +12,7 @@ export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', '
 export const GRID_ROWS = 7;
 export const GRID_COLS = 53;
 
-export type PresetName = 'HEART' | 'SMILEY' | 'SPACE_INVADER' | 'HI' | 'RIP' | 'RANDOM_SCATTER' | 'CHAOS_WAVE' | 'CHECKERBOARD';
+export type PresetName = 'HEART' | 'SMILEY' | 'SPACE_INVADER' | 'HI' | 'RIP' | 'RANDOM_SCATTER' | 'CHAOS_WAVE' | 'CHECKERBOARD' | 'LINE_GRAPH';
 export type GradientDirection = 'LEFT_TO_RIGHT' | 'RIGHT_TO_LEFT' | 'TOP_TO_BOTTOM' | 'BOTTOM_TO_TOP';
 
 export const PRESETS: Record<PresetName, { name: string, description: string }> = {
